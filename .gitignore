@@ -1,5 +1,6 @@
-.ipynb_checkpoints
+*.ipynb_checkpoints
 *.docx
 *~
-.DS_Store
+*.DS_Store
 *dask-worker*
+notebooks/clustering_residence_time.ipynb
