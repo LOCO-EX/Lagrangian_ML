@@ -4,3 +4,6 @@
 *.DS_Store
 *dask-worker*
 notebooks/clustering_residence_time.ipynb
+
+# pycache
+__pycache__/
