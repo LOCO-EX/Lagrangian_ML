@@ -7,3 +7,6 @@ notebooks/clustering_residence_time.ipynb
 
 # pycache
 __pycache__/
+
+# torch models
+*.pt
