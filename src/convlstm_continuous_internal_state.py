@@ -2,7 +2,7 @@
 Convolutional Long-Short Term Memeory Neural Network
 Author          : SSI project team Wadden Sea
 First Built     : 2021.08.01
-Last Update     : 2021.08.02
+Last Update     : 2021.11.05
 Description     : This module is an implementation of Convolutional Long-Short
                   Term Memeory Neural Network (ConvLSTM).
 
@@ -132,15 +132,12 @@ class ConvLSTM(nn.Module):
             setattr(self, name, cell)
             self._all_layers.append(cell)        
 
-    def forward(self, x, timestep):
+    def forward(self, x, timestep, internal_state_hc=None):
         """
         Forward module of ConvLSTM.
         param x: input data with dimensions [batch size, channel, height, width]
         param timestep: parameter relates to the internal state initialization
                         if 0, then the internal state will be initialized!
-        This module is called in the following way:
-        - model = convlstm.ConvLSTM()  #create the model
-        - model(x,timestep) or model.forward(x,timestep) #run the model 
         """
         if timestep == 0:
             self.internal_state = []
@@ -149,17 +146,21 @@ class ConvLSTM(nn.Module):
             # all cells are initialized in the first step
             name = 'cell{}'.format(i)
             if timestep == 0:
-                bsize, _, height, width = x.size()
-                (h, c) = getattr(self, name).init_hidden(batch_size=bsize, hidden=self.hidden_channels[i],
-                                                         shape=(height, width))
+                if not internal_state_hc:
+                    bsize, _, height, width = x.size()
+                    (h, c) = getattr(self, name).init_hidden(batch_size=bsize, hidden=self.hidden_channels[i],
+                                                             shape=(height, width))
+                else:
+                    h = torch.tensor(internal_state_hc[i][0].detach().cpu().numpy()).to(device) 
+                    c = torch.tensor(internal_state_hc[i][1].detach().cpu().numpy()).to(device)
                 self.internal_state.append((h, c))
-                
+                         
             # do forward
             (h, c) = self.internal_state[i]
             x, new_c = getattr(self, name)(x, h, c)
             self.internal_state[i] = (x, new_c)
-            # only record output from last layer
+            #record as outputs: updated hidden state from last layer
             if i == (self.num_layers - 1):
-                outputs = x
+                output = x 
 
-        return outputs, (x, new_c)
+        return output, self.internal_state.copy()

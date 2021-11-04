@@ -5,8 +5,12 @@
 *dask-worker*
 *__pycache*
 *.nc
+#torch models:
+*.pt
+#dirs:
 post_proc_data
 examples/convlstm/figures/
 examples/convlstm/old_examples/model
 examples/convlstm/displacement_to_predict_displacement/old_tests
 examples/convlstm/predict_displacement/old_tests
+
