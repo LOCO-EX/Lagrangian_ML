@@ -87,8 +87,11 @@ class ConvLSTMCell(nn.Module):
         cc = cf * c + ci * torch.tanh(self.Wxc(x) + self.Whc(h))
         co = torch.sigmoid(self.Wxo(x) + self.Who(h) + cc * self.Wco)
         ch = co * torch.tanh(cc)
-        return ch, cc
+        #print(abs(self.Wci).sum(),abs(self.Wcf).sum(),abs(self.Wco).sum()) #Wci,Wcf,Wco are always 0!!!!
+        return ch, cc #return the updated hidden=ch(t) and cell=cc(t) states from the input x(t) and states c(t-1) and h(t-1)
 
+    #initialization of  Wci,Wcf,Wco[1, hidden, height, width]=0 during the 1st epoch at t=0 for all the layers
+    #initialization of the hidden and cell states h,c[batch_size, hidden, height, width] for all epochs at t=0 from a normal distribution (mean=0,std=1)
     def init_hidden(self, batch_size, hidden, shape):
         if self.Wci is None:
             self.Wci = Variable(torch.zeros(1, hidden, shape[0], shape[1])).to(device)
@@ -97,7 +100,7 @@ class ConvLSTMCell(nn.Module):
         else:
             assert shape[0] == self.Wci.size()[2], 'Input Height Mismatched!'
             assert shape[1] == self.Wci.size()[3], 'Input Width Mismatched!'
-        return (Variable(torch.randn(batch_size, hidden, shape[0], shape[1])).to(device),
+        return (Variable(torch.randn(batch_size, hidden, shape[0], shape[1])).to(device), 
                 Variable(torch.randn(batch_size, hidden, shape[0], shape[1])).to(device))
 
 
@@ -113,7 +116,7 @@ class ConvLSTM(nn.Module):
     # hidden state is a list of succeeding lstm layers.
     def __init__(self, input_channels, hidden_channels, kernel_size, weight_dict = None):
         super(ConvLSTM, self).__init__()
-        self.input_channels = [input_channels] + hidden_channels
+        self.input_channels = [input_channels] + hidden_channels #=[input_channels,hidden_channels]
         self.hidden_channels = hidden_channels
         self.kernel_size = kernel_size
         self.num_layers = len(hidden_channels)
@@ -135,6 +138,9 @@ class ConvLSTM(nn.Module):
         param x: input data with dimensions [batch size, channel, height, width]
         param timestep: parameter relates to the internal state initialization
                         if 0, then the internal state will be initialized!
+        This module is called in the following way:
+        - model = convlstm.ConvLSTM()  #create the model
+        - model(x,timestep) or model.forward(x,timestep) #run the model 
         """
         if timestep == 0:
             self.internal_state = []
@@ -147,7 +153,7 @@ class ConvLSTM(nn.Module):
                 (h, c) = getattr(self, name).init_hidden(batch_size=bsize, hidden=self.hidden_channels[i],
                                                          shape=(height, width))
                 self.internal_state.append((h, c))
-                    
+                
             # do forward
             (h, c) = self.internal_state[i]
             x, new_c = getattr(self, name)(x, h, c)

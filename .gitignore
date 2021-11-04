@@ -3,10 +3,9 @@
 *~
 *.DS_Store
 *dask-worker*
-notebooks/clustering_residence_time.ipynb
-
-# pycache
-__pycache__/
-
-# torch models
-*.pt
+*__pycache*
+post_proc_data
+examples/convlstm/figures/
+examples/convlstm/old_examples/model
+examples/convlstm/displacement_to_predict_displacement/old_tests
+examples/convlstm/predict_displacement/old_tests
