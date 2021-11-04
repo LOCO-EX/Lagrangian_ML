@@ -4,6 +4,7 @@
 *.DS_Store
 *dask-worker*
 *__pycache*
+*.nc
 post_proc_data
 examples/convlstm/figures/
 examples/convlstm/old_examples/model
