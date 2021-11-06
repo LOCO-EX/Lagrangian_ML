@@ -2,7 +2,7 @@
 Convolutional Long-Short Term Memeory Neural Network
 Author          : SSI project team Wadden Sea
 First Built     : 2021.08.01
-Last Update     : 2021.08.02
+Last Update     : 2021.11.05
 Description     : This module is an implementation of Convolutional Long-Short
                   Term Memeory Neural Network (ConvLSTM).
 
@@ -132,34 +132,60 @@ class ConvLSTM(nn.Module):
             setattr(self, name, cell)
             self._all_layers.append(cell)        
 
-    def forward(self, x, timestep):
+    def forward(self, x, timestep, init_internal_states_hc=None):
         """
         Forward module of ConvLSTM.
-        param x: input data with dimensions [batch size, channel, height, width]
-        param timestep: parameter relates to the internal state initialization
-                        if 0, then the internal state will be initialized!
-        This module is called in the following way:
-        - model = convlstm.ConvLSTM()  #create the model
-        - model(x,timestep) or model.forward(x,timestep) #run the model 
+        Inputs:
+         - x = Input data with dimensions [batch size, input channel, height, width].
+                 * batch_size = 1: is used to have continuous states when passing data to the model. 
+                 * batch_size > 1: is used when the subset of input data (with  size = batch_size) 
+                                   given to the model are consider as independent samples, so they 
+                                   don't share contiguous internal states. 
+                                   E.g.: 
+                                   - Numerical simulations with slightly different initial 
+                                     conditions (realizations of the flow).
+                                   - Translation of sentences, but using only LSTM.
+         - timestep = Parameter related to the initialization of the model and the internal states.
+         - init_internal_states_hc = Give to the model initial hidden and cell states (default = None),
+                                     useful for having continuous states after a backward propagation.
+           If timestep = 0 and init_internal_states_hc = None: 
+              * The model is initialized.
+              * The internal hidden h and cell c states are initialized from a normal distribution.
+           If timestep = 0 and init_internal_states_hc = list of [h0,c0] tensors: 
+              * The model is initialized.
+              * The internal hidden h and cell c states are given from h0 and c0.
+           If timestep !=0: use any of both cases as initial states, and update them using the ConvLSTMCell.forward
+        Outputs:
+         - output = updated hidden state from last layer  [batch size, output channel, height, width].
+         - internal_states = list of updated h and c for all hidden layers.
+        Comments:
+         - There is no sequence parameter, so you should build an external function to mimic this behaviour.
+           The amount of times you call the function without reseting the internal states and before a backward
+           propagation will be your sequence length. However, it will increase if you use continuous states 
+           after a backward prop.
         """
-        if timestep == 0:
-            self.internal_state = []
-        # loop inside 
+        if timestep == 0: 
+            self.internal_states = [] #this reset the model in case init_internal_states_hc is given 
+        # loop for all the layers
         for i in range(self.num_layers):
-            # all cells are initialized in the first step
+            # all cells are initialized in the first timestep
             name = 'cell{}'.format(i)
             if timestep == 0:
-                bsize, _, height, width = x.size()
-                (h, c) = getattr(self, name).init_hidden(batch_size=bsize, hidden=self.hidden_channels[i],
-                                                         shape=(height, width))
-                self.internal_state.append((h, c))
-                
+                if init_internal_states_hc:
+                    h = torch.tensor(init_internal_states_hc[i][0].detach().cpu().numpy()).to(device) 
+                    c = torch.tensor(init_internal_states_hc[i][1].detach().cpu().numpy()).to(device)
+                else:
+                    bsize, _, height, width = x.size()
+                    (h, c) = getattr(self, name).init_hidden(batch_size=bsize, hidden=self.hidden_channels[i],
+                                                             shape=(height, width))
+                self.internal_states.append((h, c))
+                         
             # do forward
-            (h, c) = self.internal_state[i]
+            (h, c) = self.internal_states[i]
             x, new_c = getattr(self, name)(x, h, c)
-            self.internal_state[i] = (x, new_c)
-            # only record output from last layer
+            self.internal_states[i] = (x, new_c)
+            #record as output: updated hidden state from last layer
             if i == (self.num_layers - 1):
-                outputs = x
+                output = x 
 
-        return outputs, (x, new_c)
+        return output, self.internal_states.copy()
